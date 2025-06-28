@@ -12,7 +12,13 @@ from io import BytesIO
 
 
 # 配置matplotlib支持中文显示
-plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial Unicode MS', 'sans-serif']  # 中文字体设置
+# 检查运行环境
+system = platform.system()
+if system == 'Linux':  # Streamlit Cloud使用Linux环境
+    plt.rcParams['font.sans-serif'] = ['WenQuanYi Zen Hei', 'Noto Sans CJK JP', 'Noto Sans CJK SC', 'sans-serif']
+else:  # 本地环境
+    plt.rcParams['font.sans-serif'] = ['SimHei', 'Microsoft YaHei', 'Arial Unicode MS', 'sans-serif']
+
 plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
 
 # 设置页面标题和布局
