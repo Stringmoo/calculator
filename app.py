@@ -50,23 +50,11 @@ def update_t_max():
 def update_t_max_slider():
     st.session_state.t_max_slider = st.session_state.t_max_number
 
-# 定义参数预设
-presets = {
-    "默认参数": {"a": 40.0, "b": 50.0, "Y": 5.0, "C": 10.0, "t_max": 5.0},
-    "快速停止": {"a": 60.0, "b": 40.0, "Y": 8.0, "C": 12.0, "t_max": 3.0},
-    "长距离运动": {"a": 20.0, "b": 80.0, "Y": 3.0, "C": 5.0, "t_max": 10.0},
-    "高动能": {"a": 10.0, "b": 90.0, "Y": 2.0, "C": 8.0, "t_max": 8.0},
-    "慢速运动": {"a": 30.0, "b": 60.0, "Y": 7.0, "C": 15.0, "t_max": 15.0}
-}
-
-# 合并系统预设和用户预设
-all_presets = {**presets, **st.session_state.user_presets}
-
 # 加载预设参数的函数
 def load_preset():
     preset_name = st.session_state.preset_select
-    if preset_name in all_presets:
-        preset = all_presets[preset_name]
+    if preset_name in st.session_state.user_presets:
+        preset = st.session_state.user_presets[preset_name]
         st.session_state.a = preset["a"]
         st.session_state.b = preset["b"]
         st.session_state.Y = preset["Y"]
@@ -88,7 +76,7 @@ def load_preset():
 # 保存当前参数为新预设
 def save_current_preset():
     preset_name = st.session_state.new_preset_name
-    if preset_name and preset_name not in presets:  # 不允许覆盖系统预设
+    if preset_name:  # 只要名称不为空就可以保存
         st.session_state.user_presets[preset_name] = {
             "a": st.session_state.a,
             "b": st.session_state.b,
@@ -101,24 +89,30 @@ def save_current_preset():
 
 # 重置为默认参数
 def reset_to_default():
-    default = presets["默认参数"]
-    st.session_state.a = default["a"]
-    st.session_state.b = default["b"]
-    st.session_state.Y = default["Y"]
-    st.session_state.C = default["C"]
-    st.session_state.t_max = default["t_max"]
+    # 使用硬编码的默认值
+    default_a = 40.0
+    default_b = 50.0
+    default_Y = 5.0
+    default_C = 10.0
+    default_t_max = 5.0
+    
+    st.session_state.a = default_a
+    st.session_state.b = default_b
+    st.session_state.Y = default_Y
+    st.session_state.C = default_C
+    st.session_state.t_max = default_t_max
     
     # 同步滑动条和数值输入框
-    st.session_state.a_slider = default["a"]
-    st.session_state.a_number = default["a"]
-    st.session_state.b_slider = default["b"]
-    st.session_state.b_number = default["b"]
-    st.session_state.Y_slider = default["Y"]
-    st.session_state.Y_number = default["Y"]
-    st.session_state.C_slider = default["C"]
-    st.session_state.C_number = default["C"]
-    st.session_state.t_max_slider = default["t_max"]
-    st.session_state.t_max_number = default["t_max"]
+    st.session_state.a_slider = default_a
+    st.session_state.a_number = default_a
+    st.session_state.b_slider = default_b
+    st.session_state.b_number = default_b
+    st.session_state.Y_slider = default_Y
+    st.session_state.Y_number = default_Y
+    st.session_state.C_slider = default_C
+    st.session_state.C_number = default_C
+    st.session_state.t_max_slider = default_t_max
+    st.session_state.t_max_number = default_t_max
 
 # 配置matplotlib支持中文显示
 # 检查运行环境
@@ -149,13 +143,16 @@ B = 4  # 第二阶段终点
 st.sidebar.header("参数输入")
 
 # 参数预设选择
-st.sidebar.markdown("### 参数预设")
-st.sidebar.selectbox(
-    "选择预设参数组合",
-    options=list(all_presets.keys()),
-    key="preset_select",
-    on_change=load_preset
-)
+st.sidebar.markdown("### 自定义预设")
+
+# 如果有用户预设，显示选择框
+if st.session_state.user_presets:
+    st.sidebar.selectbox(
+        "选择已保存的预设",
+        options=list(st.session_state.user_presets.keys()),
+        key="preset_select",
+        on_change=load_preset
+    )
 
 # 保存当前参数为新预设
 preset_col1, preset_col2 = st.sidebar.columns([3, 1])
