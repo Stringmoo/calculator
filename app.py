@@ -223,71 +223,8 @@ st.sidebar.markdown(f"m (质量) = {m}")
 st.sidebar.markdown(f"A (第一阶段终点) = {A}")
 st.sidebar.markdown(f"B (第二阶段终点) = {B}")
 
-# 计算外力做功 U1
-def calculate_U1(x):
-    # 计算外力变为0的位置
-    x_zero_force = b / a if a > 0 else float('inf')
-    
-    if x <= x_zero_force:
-        # 外力为正时的做功
-        return b * x - 0.5 * a * x**2
-    else:
-        # 外力为0后，做功不再增加，保持在x_zero_force处的值
-        return b * x_zero_force - 0.5 * a * x_zero_force**2
-
-# 计算阻力做功 U2
-def calculate_U2(x):
-    if x <= A:
-        # 第一阶段 (0 ≤ x ≤ A=2): f = Y·x
-        return 0.5 * Y * x**2
-    elif x <= B:
-        # 第二阶段 (A=2 < x ≤ B=4): f = C·x^(-2/3)
-        return 2*Y + 3*C * (x**(1/3) - A**(1/3))
-    else:
-        # 第三阶段 (x > B=4): f = 0
-        return 2*Y + 3*C * (B**(1/3) - A**(1/3))
-
-# 计算动能 Ek
-def calculate_Ek(x):
-    # 先计算基本的动能
-    ek_basic = calculate_U1(x) - calculate_U2(x)
-    
-    # 如果动能已经为负，则返回0（物体已经停止）
-    if ek_basic < 0:
-        return 0
-    
-    # 如果动能为0或接近0，检查外力与阻力的关系
-    if abs(ek_basic) < 1e-10:
-        external_force = max(0, -a * x + b)  # 外力只取大于0的部分
-        resistance = calculate_resistance(x)
-        
-        # 如果外力不大于阻力，物体将保持静止
-        if external_force <= resistance:
-            return 0
-    
-    return ek_basic
-
-# 计算净外力
-def calculate_net_force(x):
-    # 计算外力
-    external_force = max(0, -a * x + b)  # 外力只取大于0的部分
-    
-    # 计算阻力
-    resistance = calculate_resistance(x)
-    
-    return external_force - resistance
-
-# 计算阻力
-def calculate_resistance(x):
-    if x <= A:
-        # 第一阶段 (0 ≤ x ≤ A=2): f = Y·x
-        return Y * x
-    elif x <= B:
-        # 第二阶段 (A=2 < x ≤ B=4): f = C·x^(-2/3)
-        return C * x**(-2/3)
-    else:
-        # 第三阶段 (x > B=4): f = 0
-        return 0
+# 导入计算函数
+from utilities.calculator import calculate_U1, calculate_U2, calculate_resistance, calculate_net_force
 
 # 添加关于部分
 with st.sidebar.expander("关于"):
@@ -346,18 +283,12 @@ def solve_motion_over_time(a, b, Y, C, A, B, m, t_max):
         # 如果速度非常小，检查是否应该停止
         if abs(v) < 1e-6:
             force_at_stop = max(0, -a * x + b)
-            resistance_at_stop = calculate_resistance(x)
+            resistance_at_stop = calculate_resistance(x, Y, C, A, B)
             if force_at_stop <= resistance_at_stop:
                 return [0, 0]  # 速度和加速度都为0
         
-        # 计算外力（只取正值）
-        force = max(0, -a * x + b)
-        
-        # 计算阻力
-        resistance = calculate_resistance(x)
-        
         # 计算净力
-        net_force = force - resistance
+        net_force = calculate_net_force(x, a, b, Y, C, A, B)
         
         # 只有在净力为正且速度为正，或净力为负时才应用加速度
         # 这可以防止在速度降为0后，如果净力为负，物体反向运动
@@ -398,24 +329,14 @@ def solve_motion_over_time(a, b, Y, C, A, B, m, t_max):
         return np.array([0]), np.array([0]), np.array([0]), np.array([0]), np.array([0]), np.array([0])
 
     # 计算各个物理量
-    # 计算外力（只取正值）
-    force = np.zeros_like(x)
-    for i in range(len(x)):
-        force[i] = max(0, -a * x[i] + b)
-    
-    # 计算阻力
-    resistance = np.zeros_like(x)
-    for i in range(len(x)):
-        resistance[i] = calculate_resistance(x[i])
-    
     # 计算功
     work_force = np.zeros_like(x)
     work_resistance = np.zeros_like(x)
     
     # 计算每个时间点的U1和U2
     for i in range(len(x)):
-        work_force[i] = calculate_U1(x[i])
-        work_resistance[i] = calculate_U2(x[i])
+        work_force[i] = calculate_U1(x[i], a, b)
+        work_resistance[i] = calculate_U2(x[i], Y, C, A, B)
 
     # 计算动能
     kinetic_energy = 0.5 * m * v**2
@@ -447,15 +368,6 @@ def plot_results(x_axis_data, work_force, work_resistance, kinetic_energy, xlabe
                 ax.axvline(x=t_B, color='gray', linestyle='--', alpha=0.7)
                 ax.text(t_B, ax.get_ylim()[1]*0.95, f't={t_B:.2f}s\n物体通过x=B={B}', 
                         rotation=90, verticalalignment='top')
-            
-            # # 找到物体通过外力为零点的时间
-            # x_zero_force = b / a if a > 0 else float('inf')
-            # idx_zero_force = np.where(x >= x_zero_force)[0]
-            # if len(idx_zero_force) > 0:
-            #     t_zero_force = x_axis_data[idx_zero_force[0]]
-            #     ax.axvline(x=t_zero_force, color='green', linestyle='-.', alpha=0.7)
-            #     ax.text(t_zero_force, ax.get_ylim()[1]*0.95, f't={t_zero_force:.2f}s\n物体通过外力为零点\nx={x_zero_force:.2f}', 
-            #             rotation=90, verticalalignment='top')
     
     ax.set_xlabel(xlabel)
     ax.set_ylabel('能量 / 功 (J)')
@@ -585,7 +497,7 @@ else:
             
             # 在该点的外力和阻力
             force_at_peak = max(0, -a * max_ke_x + b)
-            resistance_at_peak = calculate_resistance(max_ke_x)
+            resistance_at_peak = calculate_resistance(max_ke_x, Y, C, A, B)
             st.write(f"该点的外力 = {force_at_peak:.4f} N，阻力 = {resistance_at_peak:.4f} N")
         
         # 分析运动停止点
@@ -605,7 +517,7 @@ else:
             
             # 在该点的外力和阻力
             force_at_stop = max(0, -a * stop_x + b)
-            resistance_at_stop = calculate_resistance(stop_x)
+            resistance_at_stop = calculate_resistance(stop_x, Y, C, A, B)
             st.write(f"停止点的外力 = {force_at_stop:.4f} N，阻力 = {resistance_at_stop:.4f} N")
             
             # 检查外力与阻力的关系
